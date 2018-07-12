@@ -1,0 +1,33 @@
+---
+- hosts: localhost
+  user: root
+
+  tasks:
+   - name: add network
+     command: docker network create --driver bridge isolated_nw
+   
+   - name: get repos
+     command: git clone https://github.com/syrotin/docker_ansible.git /opt/repos
+
+   - name: create site place
+     command: cp -R /opt/repos/site /opt/site
+
+   - name: build web stack
+     command: docker build /opt/repos/container/nginx -t testcase/web:0.1
+
+   - name: start php
+     command: docker run -ti --network=isolated_nw -p 9000:9000 -v /opt/site:/var/www/html -d bitnami/php-fpm
+
+   - name: start nginx
+     command: docker run --name nginx --network=isolated_nw -p 80:80 -d testcase/web:0.1
+
+   - name: bulild mysql
+     command: docker build /opt/repos/container/mysql -t testcase/mysql:0.1
+  
+   - name: start master
+     command: docker run -d  --name mysql_master  -v /data/mastermysql:/var/lib/mysql  -e MYSQL_ROOT_PASSWORD=mysqlroot  -e MYSQL_USER=example_user  -e MYSQL_PASSWORD=mysqlpwd  -e MYSQL_DATABASE=example  -e REPLICATION_USER=replication_user  -e REPLICATION_PASSWORD=myreplpassword  testcase/mysql:0.1
+
+   - name: start slave
+     command: docker run -d  --name mysql_slave  -v /data/slavemysql:/var/lib/mysql  -e MYSQL_ROOT_PASSWORD=mysqlroot  -e MYSQL_USER=example_user  -e MYSQL_PASSWORD=mysqlpwd  -e MYSQL_DATABASE=example  -e REPLICATION_USER=replication_user  -e REPLICATION_PASSWORD=myreplpassword  --link mysql_master:master testcase/mysql:0.1
+
+     
